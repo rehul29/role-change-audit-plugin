@@ -1,4 +1,4 @@
 <?jelly escape-by-default='true'?>
 <div>
-    Role Based Strategy Audit
+    Role Based Strategy Audit Plugin allows user to capture audit logs for any change done in role-based authorization via role-based strategy authorization plugin.
 </div>

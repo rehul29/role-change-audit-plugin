@@ -1,6 +1,8 @@
-package com.example.jenkins;
+package com.rbac_audit.jenkins;
 
 import hudson.Extension;
+import hudson.init.Initializer;
+import hudson.init.InitMilestone;
 import hudson.XmlFile;
 import hudson.model.Saveable;
 import hudson.model.listeners.SaveableListener;
@@ -14,20 +16,26 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.time.Instant;
 import java.util.*;
+import java.util.logging.Logger;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import com.audit_log_rotator.jenkins.AuditLogRotator;
 
 @Extension
 public class RoleChangeAuditListener extends SaveableListener {
-
-    private static final File CACHE_FILE = new File("/var/jenkins_home/logs/jenkins-roles-prev.xml");
-    private static final File LOG_FILE = new File("/var/jenkins_home/logs/role-changes.log");
-
+    private static final Logger LOGGER = Logger.getLogger(RoleChangeAuditListener.class.getName());
+    private static final String JENKINS_HOME = Jenkins.get().getRootDir().getAbsolutePath();
+    private static final File CACHE_FILE = new File(JENKINS_HOME+"/logs/jenkins-roles-prev.xml");
+    private static final File LOG_FILE = new File(RoleAuditConfig.get().getLogFilePath());
+    
     @Override
     public void onChange(Saveable saveable, XmlFile file) {
         File configFile = file.getFile();
-
-        if (!configFile.getAbsolutePath().contains("config.xml")) {
+        if (!RoleAuditConfig.get().isLoggingEnabled()) return;
+        
+        if (!configFile.getAbsolutePath().contains(JENKINS_HOME+"/config.xml")) {
             return;
         }
 
@@ -102,7 +110,9 @@ public class RoleChangeAuditListener extends SaveableListener {
 
     private List<String> compareRoles(Map<String, Map<String, RoleInfo>> oldMap, Map<String, Map<String, RoleInfo>> newMap, String username) {
         List<String> logs = new ArrayList<>();
-        Instant now = Instant.now();
+        ZoneId jenkinsZoneId = ZoneId.systemDefault();  // Gets the JVM/Jenkins timezone
+        ZonedDateTime now = ZonedDateTime.now(jenkinsZoneId);
+        String timestamp = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"));
 
         for (String roleType : Arrays.asList("globalRoles", "projectRoles")) {
             Map<String, RoleInfo> oldRoles = oldMap.getOrDefault(roleType, new HashMap<>());
@@ -111,13 +121,13 @@ public class RoleChangeAuditListener extends SaveableListener {
 
             for (String roleName : newRoles.keySet()) {
                 if (!oldRoles.containsKey(roleName)) {
-                    logs.add("[" + now + "] New " + label + " role created: '" + roleName + "' by '" + username + "'");
-                    logs.add("[" + now + "] " + label + " role details: '" + roleName + "' | pattern: '" + newRoles.get(roleName).pattern + "' | permissions: " + newRoles.get(roleName).permissions);
+                    logs.add("[" + timestamp + "] New " + label + " role created: '" + roleName + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] " + label + " role details: '" + roleName + "' | pattern: '" + newRoles.get(roleName).pattern + "' | permissions: " + newRoles.get(roleName).permissions);
                 }
             }
             for (String roleName : oldRoles.keySet()) {
                 if (!newRoles.containsKey(roleName)) {
-                    logs.add("[" + now + "] " + label + " role deleted: '" + roleName + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] " + label + " role deleted: '" + roleName + "' by '" + username + "'");
                 }
             }
 
@@ -130,29 +140,29 @@ public class RoleChangeAuditListener extends SaveableListener {
                 Set<String> addedPerms = new HashSet<>(newRole.permissions);
                 addedPerms.removeAll(oldRole.permissions);
                 for (String perm : addedPerms) {
-                    logs.add("[" + now + "] Permission " + perm + " added to " + label + " role " + roleName + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] Permission " + perm + " added to " + label + " role " + roleName + "' by '" + username + "'");
                 }
 
                 Set<String> removedPerms = new HashSet<>(oldRole.permissions);
                 removedPerms.removeAll(newRole.permissions);
                 for (String perm : removedPerms) {
-                    logs.add("[" + now + "] Permission '" + perm + "' removed from " + label + " role '" + roleName + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] Permission '" + perm + "' removed from " + label + " role '" + roleName + "' by '" + username + "'");
                 }
 
                 Set<String> addedSIDs = new HashSet<>(newRole.sids);
                 addedSIDs.removeAll(oldRole.sids);
                 for (String sid : addedSIDs) {
-                    logs.add("[" + now + "] SID '" + sid + "' added to " + label + " role '" + roleName + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] SID '" + sid + "' added to " + label + " role '" + roleName + "' by '" + username + "'");
                 }
 
                 Set<String> removedSIDs = new HashSet<>(oldRole.sids);
                 removedSIDs.removeAll(newRole.sids);
                 for (String sid : removedSIDs) {
-                    logs.add("[" + now + "] SID '" + sid + "' removed from " + label + " role '" + roleName + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] SID '" + sid + "' removed from " + label + " role '" + roleName + "' by '" + username + "'");
                 }
 
                 if (!oldRole.pattern.equals(newRole.pattern)) {
-                    logs.add("[" + now + "] Pattern changed for " + label + " role '" + roleName + "' from '" + oldRole.pattern + "' to '" + newRole.pattern + "' by '" + username + "'");
+                    logs.add("[" + timestamp + "] Pattern changed for " + label + " role '" + roleName + "' from '" + oldRole.pattern + "' to '" + newRole.pattern + "' by '" + username + "'");
                 }
             }
         }
@@ -161,13 +171,23 @@ public class RoleChangeAuditListener extends SaveableListener {
     }
 
     private void writeLogs(List<String> logs) {
+        LOGGER.info("writing logs to: " + LOG_FILE.getAbsolutePath());
         if (logs.isEmpty()) return;
         try (FileWriter writer = new FileWriter(LOG_FILE, true)) {
             for (String line : logs) {
                 writer.write(line + "\n");
+                LOGGER.info(line);
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+    public static class PluginStartup {
+        @Initializer(after = InitMilestone.JOB_LOADED)
+        public static void init() {
+            LOGGER.info("Starting log rotation threads...");
+            LogRotator.start(); 
+            AuditLogRotator.start();
         }
     }
 }

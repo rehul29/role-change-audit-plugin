@@ -2,7 +2,7 @@
 
 ## Introduction
 
-TODO Describe what your plugin does here
+Role Based Strategy Audit Plugin allows user to capture audit logs for any change done in role-based authorization via role-based strategy authorization plugin.
 
 ## Getting started
 

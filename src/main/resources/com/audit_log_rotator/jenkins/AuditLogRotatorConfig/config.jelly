@@ -1,0 +1,34 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+
+  <f:section title="Audit Log Rotator">
+    <f:entry title="Enable Log Rotation" field="logRotationEnabled">
+      <f:checkbox default="true"/>
+    </f:entry>
+
+    <f:entry title="Log File Path to Rotate" field="LRLogFilePath">
+      <f:textbox/>
+    </f:entry>
+
+    <f:entry title="Log Rotation Cron" field="LRRotationCron">
+      <f:textbox default="H 0 * * *"/>
+    </f:entry>
+
+    <f:entry title="Upload Rotated Logs to S3" field="LRUploadToS3">
+      <f:checkbox/>
+    </f:entry>
+
+    <f:entry title="S3 Bucket" field="LRS3Bucket">
+      <f:textbox/>
+    </f:entry>
+
+    <f:entry title="S3 Bucket Path" field="LRS3BucketPath">
+      <f:textbox/>
+    </f:entry>
+    
+    <f:entry title="AWS Region" field="LRS3Region">
+      <f:textbox/>
+    </f:entry>
+  </f:section>
+
+</j:jelly>
