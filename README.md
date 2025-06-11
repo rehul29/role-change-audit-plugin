@@ -6,21 +6,16 @@ Role Based Strategy Audit Plugin allows user to capture audit logs for any chang
 
 ## Getting started
 
-TODO Tell users how to configure your plugin here, include screenshots, pipeline examples and 
-configuration-as-code examples.
+Install the plugin and configure it inside Manage Jenkins > System configuration.
+There are 2 part of this plugin.
+1. Role Change Auditor - This Auditor logs each and every change in Role based strategy authorization configuration, roatates the logs and uploads them to S3.
+2. Audit Log Rotator - This Rotator utility rotates and uploads Audit Trail log files to S3.
 
-## Issues
+### Role Change Auditor Configuration
+![Role Change Auditor Configuration](images/role-audit.png)
 
-TODO Decide where you're going to host your issues, the default is Jenkins JIRA, but you can also enable GitHub issues,
-If you use GitHub issues there's no need for this section; else add the following line:
-
-Report issues and enhancements in the [Jenkins issue tracker](https://issues.jenkins.io/).
-
-## Contributing
-
-TODO review the default [CONTRIBUTING](https://github.com/jenkinsci/.github/blob/master/CONTRIBUTING.md) file and make sure it is appropriate for your plugin, if not then add your own one adapted from the base file
-
-Refer to our [contribution guidelines](https://github.com/jenkinsci/.github/blob/master/CONTRIBUTING.md)
+### Audit Log Rotator Configuration
+![Audit Log Rotator Configuration](images/log-rotator.png)
 
 ## LICENSE
 
